@@ -86,18 +86,39 @@ export default function Mode1({ onExit, onDone }: { onExit: () => void; onDone: 
 
       {step === 1 && model && (
         <div className="max-w-2xl rise">
-          <Heading kicker="Bước 02 — Ngân sách" title="Quỹ khởi nghiệp đã được cấp." sub={`Mỗi hồ sơ kéo vào bộ hồ sơ sẽ trừ chi phí tương ứng. Hãy chọn đúng hồ sơ cần thiết cho ${model.name.toLowerCase()} mà không vượt ngân sách — có những hồ sơ là bẫy.`} />
+          <Heading kicker="Bước 02 — Ngân sách" title="Quỹ khởi nghiệp đã được cấp." sub={`Mỗi hồ sơ kéo vào bộ hồ sơ sẽ trừ chi phí tương ứng. Hãy lập bộ hồ sơ pháp lý phù hợp với ${model.name.toLowerCase()} mà không vượt ngân sách — cẩn thận với những hồ sơ không liên quan và giấy tờ tạo nhiễu.`} />
           <div className="border-y-2 border-navy py-10 my-6 bg-purple-soft/10 px-4">
             <Label className="text-navy font-bold">Ngân sách ban đầu · {model.name}</Label>
             <div className="font-display text-[2.6rem] sm:text-6xl lg:text-7xl font-black mt-3 tabular-nums break-words text-ink">{model.budget.toLocaleString('vi-VN')}<span className="text-2xl ml-3 font-mono font-normal text-navy">VNĐ</span></div>
           </div>
-          <Btn kind="navy" onClick={() => setStep(2)}>Mở Khay Công Cụ Pháp Lý →</Btn>
+          <div className="flex flex-wrap gap-3">
+            <Btn kind="ghost" onClick={() => setStep(0)}>← Chọn lại mô hình</Btn>
+            <Btn kind="navy" onClick={() => setStep(2)}>Mở Khay Công Cụ Pháp Lý →</Btn>
+          </div>
         </div>
       )}
 
       {(step === 2 || step === 3) && model && (
         <>
-          <Heading kicker="Bước 03–04 — Khay pháp lý" title="Lập bộ hồ sơ" sub={<><span className="hidden xl:inline">Kéo hồ sơ từ khay vào tập hồ sơ bên phải (hoặc nhấn vào thẻ).</span><span className="xl:hidden">Chạm vào thẻ hồ sơ để thêm vào tập hồ sơ bên dưới.</span> Nhấn ✕ để bỏ bớt.</>} />
+          <Heading
+            kicker="Bước 03–04 — Khay pháp lý"
+            title="Lập bộ hồ sơ pháp lý"
+            sub={
+              <>
+                <span className="font-semibold text-navy">Mục tiêu: Lập bộ hồ sơ pháp lý phù hợp với mô hình hoạt động. </span>
+                <span className="hidden xl:inline">Kéo hồ sơ từ khay vào tập hồ sơ bên phải (hoặc nhấn vào thẻ).</span>
+                <span className="xl:hidden">Chạm vào thẻ hồ sơ để thêm vào tập hồ sơ bên dưới.</span>
+                <span className="text-stamp font-semibold"> Cảnh giác với giấy tờ gần giống, không đúng thẩm quyền (tạo nhiễu).</span> Nhấn ✕ để bỏ bớt.
+              </>
+            }
+          />
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div className="flex gap-2">
+              <Btn kind="ghost" onClick={() => setStep(1)} className="py-2 px-3 text-[10px]">← Xem lại ngân sách</Btn>
+              <Btn kind="ghost" onClick={() => { if (confirm('Bạn muốn chọn lại mô hình hoạt động từ đầu?')) { setPicked([]); setStep(0); } }} className="py-2 px-3 text-[10px]">↺ Đổi mô hình</Btn>
+            </div>
+            <div className="font-mono text-xs text-ink/70">Đã chọn: <b className="text-navy">{picked.length}</b> mục</div>
+          </div>
           <div className="grid xl:grid-cols-[1.25fr_1fr] gap-8 items-start">
             <section>
               <div className="flex gap-1 mb-4 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
@@ -138,6 +159,7 @@ export default function Mode1({ onExit, onDone }: { onExit: () => void; onDone: 
             </section>
           </div>
           <div className="xl:hidden fixed bottom-0 inset-x-0 z-20 bg-white border-t-2 border-navy p-3 flex items-center gap-3 shadow-lg">
+            <Btn kind="ghost" onClick={() => setStep(1)} className="py-2 px-3 text-[10px]">←</Btn>
             <a href="#dossier" className="flex-1 min-w-0">
               <div className="font-mono text-[10px] uppercase tracking-wider text-purple font-bold">Tập hồ sơ · {picked.length} mục ↓</div>
               <div className={`font-mono text-sm truncate ${left < 0 ? 'text-stamp font-bold' : 'text-navy font-bold'}`}>Còn {vnd(left)}</div>
@@ -149,35 +171,51 @@ export default function Mode1({ onExit, onDone }: { onExit: () => void; onDone: 
 
       {step === 4 && result?.ok && model && (
         <div className="max-w-2xl rise relative">
-          <Heading kicker="Bước 05 — Kết quả thẩm định" title="Hồ sơ hợp lệ." sub={`Sở GD&ĐT chấp thuận. ${model.name} đủ điều kiện pháp lý sau ${attempts} lần nộp.`} />
+          <Heading kicker="Bước 05 — Kết quả thẩm định" title="Hồ sơ hợp lệ." sub={`Sở GD&ĐT chấp thuận theo Nghị định 125/2024/NĐ-CP. ${model.name} đủ điều kiện pháp lý sau ${attempts} lần nộp.`} />
           <div className="relative border-2 border-navy bg-white p-6 sm:p-10 overflow-hidden shadow-lg">
             <div className="stamp-in absolute right-4 top-6 sm:right-8 sm:top-8 border-4 border-stamp text-stamp px-4 py-2 sm:px-6 sm:py-3 font-display font-black text-lg sm:text-2xl uppercase tracking-wider">Được vận hành</div>
             <dl className="grid grid-cols-2 gap-6 mt-24 font-mono text-sm">
               <div><dt className="text-ink/60 text-[10px] uppercase tracking-widest font-semibold">Hồ sơ đã nộp</dt><dd className="text-xl mt-1 text-ink font-bold">{picked.length}</dd></div>
-              <div><dt className="text-ink/60 text-[10px] uppercase tracking-widest font-semibold">Hồ sơ thừa</dt><dd className="text-xl mt-1 text-ink font-bold">{picked.filter((p) => !model.req.includes(p)).length}</dd></div>
+              <div><dt className="text-ink/60 text-[10px] uppercase tracking-widest font-semibold">Hồ sơ thừa / bẫy</dt><dd className="text-xl mt-1 text-ink font-bold">{picked.filter((p) => !model.req.includes(p)).length}</dd></div>
               <div><dt className="text-ink/60 text-[10px] uppercase tracking-widest font-semibold">Ngân sách còn</dt><dd className="text-xl mt-1 text-navy font-bold">{vnd(left)}</dd></div>
               <div><dt className="text-ink/60 text-[10px] uppercase tracking-widest font-semibold">Thời gian</dt><dd className="text-xl mt-1 text-ink font-bold">{Math.ceil(elapsed / 60)} phút</dd></div>
             </dl>
           </div>
-          <Btn kind="navy" className="mt-8" onClick={finish}>Nhận chứng nhận →</Btn>
+          {picked.filter((p) => !model.req.includes(p)).length > 0 && (
+            <div className="mt-4 p-4 border-2 border-purple/40 bg-purple-soft/20 text-sm text-navy rounded-sm">
+              💡 <b>Lưu ý từ Thanh tra:</b> Bạn đã chọn kèm {picked.filter((p) => !model.req.includes(p)).length} hồ sơ không bắt buộc hoặc giấy tờ tạo nhiễu. Dù vẫn đạt chuẩn cấp phép nhưng gây lãng phí một phần quỹ khởi nghiệp.
+            </div>
+          )}
+          <div className="flex flex-wrap gap-3 mt-8">
+            <Btn kind="ghost" onClick={() => setStep(3)}>← Xem lại hồ sơ đã nộp</Btn>
+            <Btn kind="navy" onClick={finish}>Nhận chứng nhận →</Btn>
+          </div>
         </div>
       )}
 
-      {step === 5 && result && (
+      {step === 5 && result && model && (
         <div className="max-w-3xl rise">
           <div className="flex gap-4 sm:gap-6 items-start mb-8 sm:mb-10">
             <div className="shrink-0 size-14 sm:size-20 bg-navy text-white grid place-items-center font-display text-3xl italic shadow-sm">TT</div>
             <div>
               <Label className="text-stamp font-bold">Bước 06 — Thanh tra mô phỏng · Lần nộp {attempts}</Label>
               <h1 className="font-display text-3xl sm:text-4xl font-bold mt-2 text-ink">Biên bản kiểm tra</h1>
-              <p className="mt-3 text-ink/75 italic font-normal">“Tôi là Thanh Tra Viên Sở GD&ĐT. Sau khi đối chiếu, bộ hồ sơ của anh/chị chưa đạt các điều kiện dưới đây.”</p>
+              <p className="mt-3 text-ink/75 italic font-normal">“Tôi là Thanh Tra Viên Sở GD&ĐT. Căn cứ Nghị định 125/2024/NĐ-CP và các quy định hiện hành, bộ hồ sơ của cơ sở chưa đạt yêu cầu dưới đây.”</p>
             </div>
           </div>
           <div className="space-y-4">
             {result.overBudget && (
               <article className="border-l-4 border-stamp bg-stamp/10 p-6 shadow-sm">
                 <Label className="text-stamp font-bold">⚠ Vi phạm ngân sách</Label>
-                <p className="mt-2 text-ink">Tổng chi phí vượt <b className="text-stamp">{vnd(-left)}</b> so với ngân sách được cấp. Hãy loại bỏ hồ sơ không bắt buộc.</p>
+                <p className="mt-2 text-ink">Tổng chi phí vượt <b className="text-stamp">{vnd(-left)}</b> so với ngân sách được cấp. Hãy loại bỏ hồ sơ không bắt buộc hoặc các giấy tờ tạo nhiễu đắt tiền.</p>
+              </article>
+            )}
+            {picked.filter((p) => !model.req.includes(p)).length > 0 && (
+              <article className="border-l-4 border-purple bg-purple-soft/20 p-5 shadow-sm text-sm">
+                <Label className="text-purple font-bold">⚠ Phát hiện hồ sơ tạo nhiễu / Không bắt buộc ({picked.filter((p) => !model.req.includes(p)).length} mục)</Label>
+                <p className="mt-2 text-ink">
+                  Bạn đã nộp các giấy tờ không thuộc thẩm quyền hoặc không nằm trong danh mục cấp phép theo Nghị định 125/2024/NĐ-CP. Hãy nhấn "Sửa hồ sơ" và nhấn ✕ để gỡ bỏ chúng nhằm bảo toàn ngân sách.
+                </p>
               </article>
             )}
             {result.missing.map((id, i) => { const d = DOCS.find((x) => x.id === id)!; return (
@@ -186,14 +224,15 @@ export default function Mode1({ onExit, onDone }: { onExit: () => void; onDone: 
                 <div className="p-5 sm:p-6 space-y-3">
                   <div><Label className="text-ink/60 font-semibold">Hồ sơ thiếu</Label><div className="font-bold text-lg text-ink">{d.name}</div></div>
                   <div className="grid md:grid-cols-2 gap-4 text-sm text-ink">
-                    <div><Label className="text-ink/60 mb-1 font-semibold">Căn cứ pháp lý</Label><p className="font-display italic text-navy font-medium">“{d.law}”</p></div>
+                    <div><Label className="text-ink/60 mb-1 font-semibold">Căn cứ pháp lý mới</Label><p className="font-display italic text-navy font-medium">“{d.law}”</p></div>
                     <div><Label className="text-ink/60 mb-1 font-semibold">Hậu quả nếu hoạt động</Label><p className="text-ink/85">{d.result}</p></div>
                   </div>
                 </div>
               </article> )})}
           </div>
-          <div className="flex gap-3 mt-8">
+          <div className="flex flex-wrap gap-3 mt-8">
             {attempts < 4 ? <Btn kind="navy" onClick={() => setStep(3)}>Sửa hồ sơ ({4 - attempts} lần còn lại) →</Btn> : <Btn kind="ghost" onClick={() => { setResult(null); onExit() }}>Kết thúc — chơi lại từ đầu</Btn>}
+            <Btn kind="ghost" onClick={() => setStep(1)}>← Xem lại ngân sách</Btn>
           </div>
         </div>
       )}

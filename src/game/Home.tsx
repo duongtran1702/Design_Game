@@ -2,8 +2,8 @@ import { Btn, Label } from './ui'
 
 export default function Home({ name, setName, onPick, earned }: { name: string; setName: (s: string) => void; onPick: (m: 1 | 2) => void; earned: number }) {
   const modes = [
-    { n: 1 as const, kick: 'Chế độ 01 · 6 bước', title: 'Khởi Nghiệp Giáo Dục', role: 'Nhà sáng lập trung tâm / trường học', goal: 'Lập bộ hồ sơ pháp lý đúng luật trong ngân sách, vượt qua Thanh Tra Mô Phỏng.', meta: ['4 mô hình', '23 hồ sơ', 'Kéo – thả'] },
-    { n: 2 as const, kick: 'Chế độ 02 · 8 bước', title: 'Mô Phỏng Lớp Học', role: 'Giáo viên đứng lớp', goal: 'Thiết kế bài dạy 4 pha, quyết định khi nào dùng AI, cân bằng năng lực học sinh.', meta: ['6 bối cảnh', '4 pha', '3 chỉ số'] },
+    { n: 1 as const, kick: 'Chế độ 01 · 6 bước', title: 'Khởi Nghiệp Giáo Dục', role: 'Nhà sáng lập trung tâm / trường học', goal: 'Lập bộ hồ sơ pháp lý phù hợp với mô hình hoạt động trong ngân sách, vượt qua Thanh Tra Mô Phỏng.', meta: ['4 mô hình', '33 hồ sơ & bẫy', 'Kéo – thả'] },
+    { n: 2 as const, kick: 'Chế độ 02 · 8 bước', title: 'Mô Phỏng Lớp Học', role: 'Giáo viên đứng lớp', goal: 'Thiết kế bài dạy, chọn mức độ can thiệp AI phù hợp với tình huống thực tế, cân bằng năng lực học sinh.', meta: ['6 bối cảnh', '4 pha', '3 chỉ số'] },
   ]
   return (
     <div className="min-h-screen grid lg:grid-cols-[1fr_1.1fr] bg-white">

@@ -93,13 +93,21 @@ export default function Mode2({ onExit, onDone }: { onExit: () => void; onDone: 
                 <span className={`col-start-2 sm:col-start-auto font-mono text-[10px] uppercase tracking-wider ${on ? 'text-purple-light font-bold' : 'text-purple font-bold'}`}>{ok ? o.type : 'Không phù hợp'}</span>
               </button> )})}
           </div>
-          <div className="mt-8 flex items-center gap-6"><Btn kind="navy" disabled={!objValid} onClick={() => setStep(2)}>Thiết kế 4 pha →</Btn><span className="font-mono text-xs text-ink/60 font-semibold">{objs.length}/3 đã chọn</span></div>
+          <div className="mt-8 flex flex-wrap items-center gap-4">
+            <Btn kind="ghost" onClick={() => setStep(0)}>← Chọn lại bối cảnh</Btn>
+            <Btn kind="navy" disabled={!objValid} onClick={() => setStep(2)}>Thiết kế 4 pha →</Btn>
+            <span className="font-mono text-xs text-ink/60 font-semibold">{objs.length}/3 đã chọn</span>
+          </div>
         </>
       )}
 
       {(step === 2 || step === 3) && ctx && (
         <>
-          <Heading kicker="Bước 03–04 — Kịch bản dạy học" title={<>Pha {ph.n}: <span className="italic font-medium">{ph.name}</span></>} sub={`${ph.purpose} · Thời lượng gợi ý ${ph.time}`} />
+          <Heading
+            kicker="Bước 03–04 — Kịch bản dạy học"
+            title={<>Pha {ph.n}: <span className="italic font-medium">{ph.name}</span></>}
+            sub={`Thiết kế bài dạy, chọn mức độ can thiệp AI phù hợp với tình huống thực tế. ${ph.purpose} · Thời lượng gợi ý ${ph.time}`}
+          />
           <div className="grid grid-cols-4 mb-8 lg:mb-10 border-2 border-navy sticky top-[6.5rem] lg:static z-10 bg-white shadow-sm">
             {PHASES.map((p, i) => (
               <button key={p.n} onClick={() => setPhase(i)} className={`p-3 sm:p-4 text-left border-r-2 last:border-r-0 border-navy transition ${i === phase ? 'bg-navy text-white shadow-inner font-semibold' : 'hover:bg-purple-soft/20 text-ink'}`}>
@@ -143,7 +151,8 @@ export default function Mode2({ onExit, onDone }: { onExit: () => void; onDone: 
               </section>
               {warn.length > 0 && <div className="border-l-4 border-stamp bg-stamp/10 p-4 text-sm text-ink">⚠ Không khả thi: {warn.join(' · ')}</div>}
               <div className="flex flex-wrap gap-3">
-                {phase > 0 && <Btn kind="ghost" onClick={() => setPhase(phase - 1)}>← Pha trước</Btn>}
+                {phase === 0 && <Btn kind="ghost" onClick={() => setStep(1)}>← Chọn lại mục tiêu</Btn>}
+                {phase > 0 && <Btn kind="ghost" onClick={() => setPhase(phase - 1)}>← Pha trước (Pha 0{phase})</Btn>}
                 {phase < 3 ? <Btn kind="navy" disabled={!complete(cur)} onClick={() => setPhase(phase + 1)}>Pha tiếp theo →</Btn> : <Btn kind="stamp" disabled={!allDone} onClick={() => setStep(4)}>Lên lớp & xem phản ứng →</Btn>}
               </div>
             </div>
@@ -166,7 +175,7 @@ export default function Mode2({ onExit, onDone }: { onExit: () => void; onDone: 
 
       {step === 4 && ctx && (
         <>
-          <Heading kicker="Bước 05 — Phản ứng học sinh" title="Lớp học đã phản ứng thế nào?" />
+          <Heading kicker="Bước 05 — Phản ứng học sinh" title="Lớp học đã phản ứng thế nào?" sub="Quan sát biểu đồ năng lực 3 chỉ số và phản ứng thực tế của học sinh sau bài giảng." />
           <div className="grid xl:grid-cols-[minmax(0,380px)_1fr] gap-8 xl:gap-12 items-center justify-items-center xl:justify-items-stretch">
             <Radar v={stats} />
             <div className="space-y-6 w-full">
@@ -178,13 +187,16 @@ export default function Mode2({ onExit, onDone }: { onExit: () => void; onDone: 
               ))}
             </div>
           </div>
-          <Btn kind="navy" className="mt-10" onClick={() => setStep(5)}>Xem phản hồi từng pha →</Btn>
+          <div className="flex flex-wrap gap-3 mt-10">
+            <Btn kind="ghost" onClick={() => { setPhase(3); setStep(2); }}>← Sửa lại kịch bản 4 pha</Btn>
+            <Btn kind="navy" onClick={() => setStep(5)}>Xem phản hồi từng pha →</Btn>
+          </div>
         </>
       )}
 
       {step === 5 && ctx && (
         <>
-          <Heading kicker="Bước 06 — Phản hồi" title="Nhận xét sau quyết định" />
+          <Heading kicker="Bước 06 — Phản hồi" title="Nhận xét sau quyết định" sub="Phân tích chi tiết từng quyết định sư phạm và góc độ ứng dụng AI trong bài dạy." />
           {globalNotes.map((n) => <div key={n} className="bg-navy text-white p-5 mb-4 max-w-4xl border-l-4 border-purple-light shadow-sm font-medium">{n}</div>)}
           <div className="grid lg:grid-cols-2 gap-4">
             {plan.map((p, i) => { const f = feedback(ctx, p, i); return (
@@ -198,7 +210,10 @@ export default function Mode2({ onExit, onDone }: { onExit: () => void; onDone: 
                 </ul>
               </article> )})}
           </div>
-          <Btn kind="navy" className="mt-10" onClick={() => setStep(6)}>Tiếp tục →</Btn>
+          <div className="flex flex-wrap gap-3 mt-10">
+            <Btn kind="ghost" onClick={() => setStep(4)}>← Xem lại phản ứng HS</Btn>
+            <Btn kind="navy" onClick={() => setStep(6)}>Xem điểm & Điều chỉnh →</Btn>
+          </div>
         </>
       )}
 
@@ -217,6 +232,7 @@ export default function Mode2({ onExit, onDone }: { onExit: () => void; onDone: 
           </div>
           <div className="flex flex-wrap gap-3">
             <Btn kind="ghost" disabled={adjusts >= 2} onClick={() => { setAdjusts(adjusts + 1); setPhase(0); setStep(2) }}>↺ Điều chỉnh ({2 - adjusts} lần còn lại)</Btn>
+            <Btn kind="ghost" onClick={() => setStep(5)}>← Xem lại nhận xét phản hồi</Btn>
             <Btn kind="stamp" onClick={() => { setStep(7); onDone({ ctx: ctx.name, score: score.total, stats, adjusts }) }}>Hoàn thành hành trình →</Btn>
           </div>
         </div>
