@@ -88,3 +88,100 @@ export function Heading({ kicker, title, sub }: { kicker: string; title: ReactNo
     </header>
   )
 }
+
+/** Lightweight Canvas Confetti for high-score celebration */
+export function Confetti() {
+  return (
+    <canvas
+      className="fixed inset-0 pointer-events-none z-50 w-full h-full"
+      ref={(canvas) => {
+        if (!canvas) return
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return
+        canvas.width = window.innerWidth
+        canvas.height = window.innerHeight
+
+        const colors = ['#1a3399', '#b366d4', '#e2b0ff', '#d9961a', '#c8361f']
+        const pieces = Array.from({ length: 80 }, () => ({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height * -0.5,
+          w: Math.random() * 9 + 6,
+          h: Math.random() * 6 + 4,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          vx: (Math.random() - 0.5) * 4,
+          vy: Math.random() * 3 + 2,
+          rot: Math.random() * 360,
+          rotSpeed: (Math.random() - 0.5) * 8,
+          opacity: 1,
+        }))
+
+        let animId: number
+        let frame = 0
+        const render = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height)
+          pieces.forEach((p) => {
+            p.x += p.vx
+            p.y += p.vy
+            p.rot += p.rotSpeed
+            if (frame > 120) p.opacity -= 0.008
+            ctx.save()
+            ctx.globalAlpha = Math.max(0, p.opacity)
+            ctx.translate(p.x, p.y)
+            ctx.rotate((p.rot * Math.PI) / 180)
+            ctx.fillStyle = p.color
+            ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h)
+            ctx.restore()
+          })
+          frame++
+          if (frame < 220) {
+            animId = requestAnimationFrame(render)
+          }
+        }
+        animId = requestAnimationFrame(render)
+      }}
+    />
+  )
+}
+
+/** Modal dialog with navy borders and paper background */
+export function Modal({ isOpen, onClose, title, sub, icon, children }: { isOpen: boolean; onClose?: () => void; title: ReactNode; sub?: string; icon?: string; children: ReactNode }) {
+  if (!isOpen) return null
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy/40 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white border-2 border-navy max-w-xl w-full p-6 sm:p-8 shadow-[10px_10px_0_#1a3399] relative rise max-h-[90vh] overflow-y-auto">
+        <div className="flex items-start gap-4 mb-5 border-b-2 border-navy/20 pb-4">
+          {icon && <span className="text-4xl shrink-0 p-2 bg-purple-soft/30 border border-purple/30 rounded-xs">{icon}</span>}
+          <div className="flex-1 min-w-0">
+            {sub && <Label className="text-purple font-bold mb-1">{sub}</Label>}
+            <h2 className="font-display text-2xl font-bold text-ink leading-tight">{title}</h2>
+          </div>
+          {onClose && (
+            <button onClick={onClose} className="text-ink/40 hover:text-stamp font-mono text-lg font-bold p-1">✕</button>
+          )}
+        </div>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+/** Badge item chip display */
+export function BadgeChip({ badge }: { badge: { id: string; name: string; desc: string; icon: string; rarity: string } }) {
+  const border = {
+    gold: 'border-ochre bg-ochre/10 text-ink',
+    silver: 'border-navy/40 bg-purple-soft/20 text-ink',
+    purple: 'border-purple bg-purple-light/20 text-ink',
+    blue: 'border-navy bg-navy/10 text-ink',
+  }[badge.rarity] || 'border-navy'
+
+  return (
+    <div className={`p-3 border-2 ${border} flex items-start gap-3 shadow-xs group transition hover:-translate-y-0.5`}>
+      <span className="text-2xl shrink-0">{badge.icon}</span>
+      <div>
+        <div className="font-bold text-sm text-ink group-hover:text-navy transition">{badge.name}</div>
+        <div className="text-xs text-ink/75 mt-0.5 leading-snug">{badge.desc}</div>
+      </div>
+    </div>
+  )
+}
+

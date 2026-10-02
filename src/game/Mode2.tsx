@@ -1,8 +1,44 @@
-import { useState } from 'react'
-import { AI_LEVELS, CONTEXTS, MODES, OBJECTIVES, PHASES, REACTIONS, STAT_NAMES, band, computeStats, feedback, infeasible, scoreMode2, type Ctx, type PhaseChoice } from './data'
-import { Btn, Heading, Label, Shell } from './ui'
+import { useEffect, useState } from 'react'
+import {
+  AI_LEVELS,
+  CONTEXTS,
+  MODES,
+  OBJECTIVES,
+  PHASES,
+  REACTIONS,
+  STAT_NAMES,
+  M2_EVENTS,
+  M2_DILEMMAS,
+  BRANCH_SCENARIOS,
+  band,
+  computeStats,
+  feedback,
+  infeasible,
+  scoreMode2,
+  getStudentPerspective,
+  saveLeaderboard,
+  saveLastRun,
+  getLastRun,
+  type Ctx,
+  type PhaseChoice,
+  type GameEvent,
+  type DilemmaCard,
+  type BranchScenario,
+} from './data'
+import { Btn, Heading, Label, Modal, Shell } from './ui'
 
-export type Cert2 = { ctx: string; score: number; stats: number[]; adjusts: number }
+export type Cert2 = {
+  ctx: string
+  score: number
+  stats: number[]
+  adjusts: number
+  badges: string[]
+  studentDiary?: { studentName: string; diary: string }
+  dilemmaChoice?: { title: string; choiceText: string; isEthical: boolean }
+  eventChoice?: { title: string; choiceText: string }
+  branchChoice?: { label: string; tip: string }
+}
+
 const STEPS = ['Bối cảnh lớp học', 'Mục tiêu bài học', 'Thiết kế 4 pha', 'Quyết định dùng AI', 'Phản ứng học sinh', 'Phản hồi sau quyết định', 'Điều chỉnh – chơi lại', 'Hoàn thành hành trình']
 
 function Radar({ v }: { v: number[] }) {
@@ -20,13 +56,43 @@ function Radar({ v }: { v: number[] }) {
   )
 }
 
-export default function Mode2({ onExit, onDone }: { onExit: () => void; onDone: (c: Cert2) => void }) {
+export default function Mode2({ onExit, onDone, playerName = 'Người chơi' }: { onExit: () => void; onDone: (c: Cert2) => void; playerName?: string }) {
   const [step, setStep] = useState(0)
   const [ctx, setCtx] = useState<Ctx | null>(null)
   const [objs, setObjs] = useState<string[]>([])
   const [plan, setPlan] = useState<PhaseChoice[]>([{}, {}, {}, {}])
   const [phase, setPhase] = useState(0)
   const [adjusts, setAdjusts] = useState(0)
+
+  // Timer
+  const [start] = useState(() => Date.now())
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [])
+  const elapsed = Math.floor((now - start) / 1000)
+
+  // ⚡ Random Event state
+  const [activeEvent, setActiveEvent] = useState<GameEvent | null>(null)
+  const [eventChoice, setEventChoice] = useState<{ title: string; choiceText: string } | null>(null)
+  const [eventStatsDelta, setEventStatsDelta] = useState<[number, number, number]>([0, 0, 0])
+
+  // 📖 Branching Scenario state
+  const [activeBranch, setActiveBranch] = useState<BranchScenario | null>(null)
+  const [branchChoice, setBranchChoice] = useState<{ label: string; tip: string } | null>(null)
+  const [branchStatsDelta, setBranchStatsDelta] = useState<[number, number, number]>([0, 0, 0])
+  const [branchTriggered, setBranchTriggered] = useState(false)
+
+  // ⚖️ Dilemma Card state
+  const [activeDilemma, setActiveDilemma] = useState<DilemmaCard | null>(null)
+  const [dilemmaChoice, setDilemmaChoice] = useState<{ title: string; choiceText: string; isEthical: boolean } | null>(null)
+  const [dilemmaStatsDelta, setDilemmaStatsDelta] = useState<[number, number, number]>([0, 0, 0])
+  const [dilemmaTriggered, setDilemmaTriggered] = useState(false)
+
+  // 🔄 Compare Run state
+  const [showCompare, setShowCompare] = useState(false)
+  const lastRun = getLastRun(2)
 
   const setP = (k: keyof PhaseChoice, v: string | number) => setPlan((p) => p.map((x, i) => (i === phase ? { ...x, [k]: v } : x)))
   const complete = (p: PhaseChoice) => p.act && p.mode && p.ai !== undefined
@@ -35,8 +101,13 @@ export default function Mode2({ onExit, onDone }: { onExit: () => void; onDone: 
   const objAllowed = (o: (typeof OBJECTIVES)[number]) => (o.ctx === 'all' || o.ctx.includes(ctx!.id)) && !(o.type === 'Năng lực số' && ctx!.internet === 'Không')
   const objValid = objs.length >= 2 && objs.length <= 3 && objs.some((id) => ['Kiến thức', 'Kỹ năng'].includes(OBJECTIVES.find((o) => o.id === id)!.type))
 
-  const stats = ctx && allDone ? computeStats(ctx, plan) : [50, 50, 50]
+  const baseStats = ctx && allDone ? computeStats(ctx, plan) : [50, 50, 50]
+  const stats = baseStats.map((v, i) => {
+    const delta = (eventStatsDelta[i] ?? 0) + (branchStatsDelta[i] ?? 0) + (dilemmaStatsDelta[i] ?? 0)
+    return Math.max(0, Math.min(100, Math.round(v + delta)))
+  })
   const score = ctx && allDone ? scoreMode2(ctx, plan, stats) : null
+  const studentDiary = ctx && allDone ? getStudentPerspective(ctx, plan, stats) : null
 
   const globalNotes: string[] = []
   if (allDone) {
@@ -49,6 +120,103 @@ export default function Mode2({ onExit, onDone }: { onExit: () => void; onDone: 
   const cur = plan[phase]
   const warn = ctx ? infeasible(ctx, cur, phase) : []
 
+  // Phase transitions
+  const handleNextPhase = () => {
+    if (phase === 1 && !branchTriggered) {
+      setBranchTriggered(true)
+      setActiveBranch(BRANCH_SCENARIOS[0])
+      return
+    }
+    if (phase === 2 && !eventChoice && !activeEvent) {
+      const ev = M2_EVENTS[Math.floor(Math.random() * M2_EVENTS.length)]
+      setActiveEvent(ev)
+      return
+    }
+    if (phase < 3) setPhase(phase + 1)
+  }
+
+  const handleBranchSelect = (choiceIdx: number) => {
+    if (!activeBranch) return
+    const ch = activeBranch.choices[choiceIdx]
+    setBranchStatsDelta(ch.statMod)
+    setBranchChoice({ label: ch.label, tip: ch.tip })
+    setActiveBranch(null)
+    setPhase(2)
+  }
+
+  const handleEventSelect = (optIdx: number) => {
+    if (!activeEvent) return
+    const opt = activeEvent.options[optIdx]
+    if (opt.deltaStats) setEventStatsDelta(opt.deltaStats as [number, number, number])
+    setEventChoice({ title: activeEvent.title, choiceText: opt.label })
+    setActiveEvent(null)
+    setPhase(3)
+  }
+
+  const handleDilemmaSelect = (optIdx: number) => {
+    if (!activeDilemma) return
+    const opt = activeDilemma.options[optIdx]
+    if (opt.statsDelta) setDilemmaStatsDelta(opt.statsDelta as [number, number, number])
+    setDilemmaChoice({ title: activeDilemma.title, choiceText: opt.text, isEthical: opt.isEthical })
+    setActiveDilemma(null)
+    setStep(4)
+  }
+
+  const handleFinishPhases = () => {
+    if (!dilemmaTriggered) {
+      setDilemmaTriggered(true)
+      const d = M2_DILEMMAS[Math.floor(Math.random() * M2_DILEMMAS.length)]
+      setActiveDilemma(d)
+    } else {
+      setStep(4)
+    }
+  }
+
+  const finishJourney = () => {
+    if (!ctx || !score) return
+    const badges: string[] = []
+    if (elapsed <= 180) badges.push('speed')
+    const spread = Math.max(...stats) - Math.min(...stats)
+    if (spread <= 10) badges.push('balanced')
+    if (plan.every((p) => p.ai === 0) && score.total >= 75) badges.push('pure_human')
+    if (plan.filter((p) => (p.ai ?? 0) > 0).length >= 3 && score.total >= 80) badges.push('ai_master')
+    if (score.total >= 90) badges.push('top_rank')
+    if (dilemmaChoice?.isEthical) badges.push('ethics_hero')
+
+    // Save last run for compare mode
+    saveLastRun(2, {
+      ctx: ctx.name,
+      plan,
+      stats,
+      score: score.total,
+      date: new Date().toLocaleDateString('vi-VN'),
+    })
+
+    // Save leaderboard
+    saveLeaderboard(2, {
+      name: playerName || 'Người chơi',
+      mode: 2,
+      score: score.total,
+      detail: `${ctx.name} · ${score.total}/100 điểm`,
+      badges,
+    })
+
+    setStep(7)
+    onDone({
+      ctx: ctx.name,
+      score: score.total,
+      stats,
+      adjusts,
+      badges,
+      studentDiary: studentDiary ?? undefined,
+      dilemmaChoice: dilemmaChoice ?? undefined,
+      eventChoice: eventChoice ?? undefined,
+      branchChoice: branchChoice ?? undefined,
+    })
+  }
+
+  const timerColor = elapsed < 180 ? 'text-navy' : elapsed < 360 ? 'text-ochre' : 'text-stamp animate-pulse font-bold'
+
   return (
     <Shell mode="Chế độ 02" title="Mô Phỏng Lớp Học" steps={STEPS} current={step} onExit={onExit}
       rail={ctx && (
@@ -57,8 +225,144 @@ export default function Mode2({ onExit, onDone }: { onExit: () => void; onDone: 
           <div className="hidden lg:block font-display text-lg text-ink font-bold">{ctx.name}</div>
           <div className="lg:hidden font-mono text-[11px] text-ink/70 truncate">{ctx.name} · {ctx.size} HS · Internet {ctx.internet}</div>
           <div className="hidden lg:block font-mono text-[11px] text-ink/60">{ctx.size} HS · Internet: {ctx.internet} · Điều chỉnh {adjusts}/2</div>
+          <div className="hidden lg:flex justify-between items-center font-mono text-[11px] pt-2 border-t border-navy/15">
+            <span className="text-ink/60">Thời gian:</span>
+            <span className={timerColor}>⏱ {String(Math.floor(elapsed / 60)).padStart(2, '0')}:{String(elapsed % 60).padStart(2, '0')}</span>
+          </div>
         </div>
       )}>
+
+      {/* 📖 Branching Scenario Modal */}
+      {activeBranch && (
+        <Modal
+          isOpen={true}
+          title={activeBranch.title}
+          sub="Ngã rẽ phân nhánh sư phạm"
+          icon="📖"
+        >
+          <div className="space-y-4">
+            <p className="text-ink text-sm leading-relaxed">{activeBranch.situation}</p>
+            <div className="border-t-2 border-navy/20 pt-4 space-y-3">
+              <Label className="text-navy font-bold">Lựa chọn hướng xử lý của bạn:</Label>
+              {activeBranch.choices.map((ch, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleBranchSelect(idx)}
+                  className="w-full text-left p-4 border-2 border-navy hover:bg-navy hover:text-white group bg-white shadow-xs transition"
+                >
+                  <div className="font-bold text-sm text-ink group-hover:text-white">{ch.label}</div>
+                  <div className="text-xs text-ink/70 group-hover:text-white/80 mt-1">{ch.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* ⚡ Random Event Modal */}
+      {activeEvent && (
+        <Modal
+          isOpen={true}
+          title={activeEvent.title}
+          sub={activeEvent.sub}
+          icon={activeEvent.icon}
+        >
+          <div className="space-y-4">
+            <div className="inline-block px-2.5 py-0.5 bg-purple-soft/30 border border-purple/40 text-navy font-mono text-[10px] uppercase font-bold">
+              {activeEvent.tag}
+            </div>
+            <p className="text-ink text-sm leading-relaxed">{activeEvent.desc}</p>
+            <div className="border-t-2 border-navy/20 pt-4 space-y-3">
+              <Label className="text-navy font-bold">Giải pháp của giáo viên:</Label>
+              {activeEvent.options.map((opt, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleEventSelect(idx)}
+                  className="w-full text-left p-3.5 border-2 border-navy hover:bg-navy hover:text-white group bg-white shadow-xs transition"
+                >
+                  <div className="font-bold text-sm text-ink group-hover:text-white">{opt.label}</div>
+                  <div className="text-xs text-ink/70 group-hover:text-white/80 mt-1 font-mono">→ {opt.effectText}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* ⚖️ Dilemma Modal */}
+      {activeDilemma && (
+        <Modal
+          isOpen={true}
+          title={activeDilemma.title}
+          sub="Tình huống đạo đức lớp học"
+          icon={activeDilemma.icon}
+        >
+          <div className="space-y-4">
+            <div className="inline-block px-2.5 py-0.5 bg-purple-soft/30 border border-purple/40 text-navy font-mono text-[10px] uppercase font-bold">
+              {activeDilemma.tag}
+            </div>
+            <p className="text-ink text-sm italic font-display leading-relaxed">“{activeDilemma.scenario}”</p>
+            <div className="border-t-2 border-navy/20 pt-4 space-y-3">
+              <Label className="text-navy font-bold">Cách xử lý của bạn:</Label>
+              {activeDilemma.options.map((opt, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleDilemmaSelect(idx)}
+                  className={`w-full text-left p-3.5 border-2 transition shadow-xs ${opt.isEthical ? 'border-navy hover:bg-navy hover:text-white group bg-white' : 'border-stamp/60 hover:bg-stamp hover:text-white group bg-white'}`}
+                >
+                  <div className="font-bold text-sm text-ink group-hover:text-white">{opt.text}</div>
+                  <div className="text-xs text-ink/70 group-hover:text-white/80 mt-1">Hậu quả: {opt.consequence}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* 🔄 Compare Modal */}
+      {showCompare && lastRun && (
+        <Modal
+          isOpen={true}
+          onClose={() => setShowCompare(false)}
+          title="So Sánh Hai Lượt Dạy"
+          sub="Compare Mode · Phân tích chiến lược sư phạm"
+          icon="🔄"
+        >
+          <div className="space-y-5 text-xs">
+            <div className="grid grid-cols-2 gap-4 border-b-2 border-navy/20 pb-4">
+              <div className="p-3 border-2 border-navy/30 bg-purple-soft/10">
+                <Label className="text-ink/60 font-bold mb-1">Lượt trước ({lastRun.date})</Label>
+                <div className="font-bold text-base text-ink">{lastRun.ctx}</div>
+                <div className="text-navy font-display text-xl font-black mt-1">{lastRun.score} điểm</div>
+                <div className="mt-2 space-y-1 font-mono">
+                  {STAT_NAMES.map((name, i) => (
+                    <div key={name} className="flex justify-between">{name}: <b>{lastRun.stats[i]}</b></div>
+                  ))}
+                </div>
+              </div>
+              <div className="p-3 border-2 border-navy bg-white shadow-sm">
+                <Label className="text-navy font-bold mb-1">Lượt hiện tại</Label>
+                <div className="font-bold text-base text-navy">{ctx?.name}</div>
+                <div className="text-navy font-display text-xl font-black mt-1">{score?.total} điểm</div>
+                <div className="mt-2 space-y-1 font-mono">
+                  {STAT_NAMES.map((name, i) => {
+                    const diff = stats[i] - lastRun.stats[i]
+                    return (
+                      <div key={name} className="flex justify-between">
+                        {name}: <b>{stats[i]}</b>
+                        <span className={diff >= 0 ? 'text-navy' : 'text-stamp'}>({diff >= 0 ? `+${diff}` : diff})</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+            <p className="text-ink/80 italic font-display">
+              💡 <b>Gợi ý sư phạm:</b> Sự đánh đổi giữa Tư duy độc lập và Công cụ số là bài toán cốt lõi. Hãy chú ý xem khi bạn tăng mức độ can thiệp của AI, học sinh có bị mất đi cơ hội tự giải quyết vấn đề hay không.
+            </p>
+          </div>
+        </Modal>
+      )}
 
       {step === 0 && (
         <>
@@ -153,7 +457,7 @@ export default function Mode2({ onExit, onDone }: { onExit: () => void; onDone: 
               <div className="flex flex-wrap gap-3">
                 {phase === 0 && <Btn kind="ghost" onClick={() => setStep(1)}>← Chọn lại mục tiêu</Btn>}
                 {phase > 0 && <Btn kind="ghost" onClick={() => setPhase(phase - 1)}>← Pha trước (Pha 0{phase})</Btn>}
-                {phase < 3 ? <Btn kind="navy" disabled={!complete(cur)} onClick={() => setPhase(phase + 1)}>Pha tiếp theo →</Btn> : <Btn kind="stamp" disabled={!allDone} onClick={() => setStep(4)}>Lên lớp & xem phản ứng →</Btn>}
+                {phase < 3 ? <Btn kind="navy" disabled={!complete(cur)} onClick={handleNextPhase}>Pha tiếp theo →</Btn> : <Btn kind="stamp" disabled={!allDone} onClick={handleFinishPhases}>Lên lớp & xem phản ứng →</Btn>}
               </div>
             </div>
             <aside className="border-t-2 lg:border-t-0 lg:border-l-2 border-navy lg:pl-6 pt-4 lg:pt-0 text-sm space-y-4">
@@ -167,6 +471,19 @@ export default function Mode2({ onExit, onDone }: { onExit: () => void; onDone: 
                   </div>
                 </div>
               ))}
+              {branchChoice && (
+                <div className="p-2.5 bg-purple-soft/20 border border-purple/40 text-xs">
+                  <Label className="text-purple font-bold">📖 Hướng phân nhánh</Label>
+                  <div className="text-ink font-semibold mt-1">{branchChoice.label}</div>
+                  <div className="text-ink/70 text-[11px] mt-0.5">{branchChoice.tip}</div>
+                </div>
+              )}
+              {eventChoice && (
+                <div className="p-2.5 bg-purple-soft/20 border border-purple/40 text-xs">
+                  <Label className="text-purple font-bold">⚡ Sự kiện đã xử lý</Label>
+                  <div className="text-ink font-semibold mt-1">{eventChoice.title}</div>
+                </div>
+              )}
               <p className="font-display italic text-navy/70">“Không có lựa chọn nào luôn đúng — tác động phụ thuộc vào pha và bối cảnh.”</p>
             </aside>
           </div>
@@ -187,6 +504,21 @@ export default function Mode2({ onExit, onDone }: { onExit: () => void; onDone: 
               ))}
             </div>
           </div>
+
+          {/* 👁️ Student Perspective (Feature 9) */}
+          {studentDiary && (
+            <div className="mt-8 border-2 border-navy bg-white p-6 shadow-sm relative">
+              <div className="flex items-center gap-3 mb-3 border-b border-navy/20 pb-2">
+                <span className="text-2xl">📖</span>
+                <div>
+                  <Label className="text-purple font-bold">Góc Nhìn Học Sinh · Nhật ký lớp học</Label>
+                  <span className="font-display font-bold text-ink">Em {studentDiary.studentName} ({ctx.name})</span>
+                </div>
+              </div>
+              <p className="font-display italic text-ink/85 leading-relaxed text-base sm:text-lg">{studentDiary.diary}</p>
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-3 mt-10">
             <Btn kind="ghost" onClick={() => { setPhase(3); setStep(2); }}>← Sửa lại kịch bản 4 pha</Btn>
             <Btn kind="navy" onClick={() => setStep(5)}>Xem phản hồi từng pha →</Btn>
@@ -230,13 +562,17 @@ export default function Mode2({ onExit, onDone }: { onExit: () => void; onDone: 
             ))}
             <div className="flex justify-between items-baseline pt-4 mt-2 border-t-2 border-navy/20"><Label className="text-navy font-bold">Tổng điểm dự kiến</Label><span className="font-display text-5xl font-black text-navy">{score.total}</span></div>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-3 items-center">
             <Btn kind="ghost" disabled={adjusts >= 2} onClick={() => { setAdjusts(adjusts + 1); setPhase(0); setStep(2) }}>↺ Điều chỉnh ({2 - adjusts} lần còn lại)</Btn>
             <Btn kind="ghost" onClick={() => setStep(5)}>← Xem lại nhận xét phản hồi</Btn>
-            <Btn kind="stamp" onClick={() => { setStep(7); onDone({ ctx: ctx.name, score: score.total, stats, adjusts }) }}>Hoàn thành hành trình →</Btn>
+            {lastRun && (
+              <Btn kind="paper" onClick={() => setShowCompare(true)}>🔄 So sánh với lượt dạy trước</Btn>
+            )}
+            <Btn kind="stamp" onClick={finishJourney}>Hoàn thành hành trình →</Btn>
           </div>
         </div>
       )}
     </Shell>
   )
 }
+

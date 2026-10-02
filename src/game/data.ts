@@ -190,3 +190,446 @@ export function scoreMode2(ctx: Ctx, plan: PhaseChoice[], stats: number[]) {
 }
 export function rank2(s: number) { return s >= 90 ? [3, 'Nhà Giáo Dục Xuất Sắc'] : s >= 75 ? [2, 'Nhà Giáo Dục Tiềm Năng'] : s >= 55 ? [1, 'Người Mới Bắt Đầu'] : [0, 'Cần Rèn Luyện Thêm'] }
 export function rank1(s: number) { return s >= 90 ? [3, 'Xuất sắc'] : s >= 70 ? [2, 'Khá'] : s >= 50 ? [1, 'Trung bình'] : [0, 'Chưa đạt'] }
+
+// ==========================================
+// 🏅 ACHIEVEMENT BADGES
+// ==========================================
+export type Badge = {
+  id: string
+  name: string
+  desc: string
+  icon: string
+  rarity: 'gold' | 'silver' | 'purple' | 'blue'
+}
+
+export const BADGES: Record<string, Badge> = {
+  speed: { id: 'speed', name: 'Thần Tốc', desc: 'Hoàn thành lượt chơi dưới 3 phút', icon: '⚡', rarity: 'gold' },
+  flawless1: { id: 'flawless1', name: 'Chuẩn Chỉ Pháp Lý', desc: 'Đạt thẩm định ngay trong lần nộp hồ sơ đầu tiên', icon: '🛡️', rarity: 'gold' },
+  budget_saver: { id: 'budget_saver', name: 'Nhà Quản Lý Tài Ba', desc: 'Bảo toàn trên 40% ngân sách khởi nghiệp', icon: '💰', rarity: 'silver' },
+  balanced: { id: 'balanced', name: 'Cân Bằng Hoàn Hảo', desc: 'Khoảng cách giữa 3 chỉ số năng lực không quá 10 điểm', icon: '🎯', rarity: 'purple' },
+  pure_human: { id: 'pure_human', name: 'Sư Phạm Bản Lĩnh', desc: 'Tự lực 100% không dùng AI mà học sinh vẫn đạt kết quả tốt', icon: '🧠', rarity: 'gold' },
+  ai_master: { id: 'ai_master', name: 'Tiên Phong Công Nghệ', desc: 'Vận dụng AI đa dạng và linh hoạt qua các pha', icon: '🤖', rarity: 'blue' },
+  top_rank: { id: 'top_rank', name: 'Nhà Giáo Xuất Sắc', desc: 'Đạt từ 90 điểm trở lên trên thang điểm 100', icon: '🌟', rarity: 'gold' },
+  ethics_hero: { id: 'ethics_hero', name: 'Ngọn Đuốc Đạo Đức', desc: 'Kiên quyết lựa chọn chuẩn mực đạo đức sư phạm khi đối mặt cám dỗ', icon: '⚖️', rarity: 'purple' },
+}
+
+// ==========================================
+// ⚡ RANDOM EVENTS (SỰ KIỆN BẤT NGỜ)
+// ==========================================
+export type GameEvent = {
+  id: string
+  title: string
+  sub: string
+  desc: string
+  tag: string
+  icon: string
+  options: {
+    label: string
+    effectText: string
+    deltaBudget?: number
+    deltaScore?: number
+    deltaStats?: number[]
+    flag?: string
+  }[]
+}
+
+export const M1_EVENTS: GameEvent[] = [
+  {
+    id: 'm1_ev_pccc',
+    title: 'Sở GD&ĐT Ra Quân Rà Soát PCCC',
+    sub: 'Sự kiện đột xuất tại địa phương',
+    desc: 'Vừa xảy ra sự cố cháy nổ tại một cơ sở dạy thêm trong địa bàn. Sở GD&ĐT phối hợp Công an PCCC tăng cường siết chặt hồ sơ thẩm duyệt PCCC với mọi đơn vị thành lập mới.',
+    tag: 'Thanh tra đột xuất',
+    icon: '🚒',
+    options: [
+      {
+        label: 'Cam kết thẩm duyệt PCCC cấp Tỉnh nghiêm ngặt (D06)',
+        effectText: 'Thanh tra đánh giá cao tính chuyên nghiệp và an toàn sinh mạng (+5 điểm)',
+        deltaScore: 5,
+        flag: 'strict_pccc'
+      },
+      {
+        label: 'Xin gia hạn nộp hồ sơ PCCC sau khi khai trương',
+        effectText: 'Không được chấp thuận — Thanh tra cảnh báo rủi ro đình chỉ hoạt động (-5 điểm)',
+        deltaScore: -5
+      }
+    ]
+  },
+  {
+    id: 'm1_ev_rent_subsidy',
+    title: 'Gói Kích Cầu Mặt Bằng Giáo Dục',
+    sub: 'Chính sách hỗ trợ khởi nghiệp',
+    desc: 'Chủ toà nhà đồng hành cùng giáo dục, đồng ý giảm giá hợp đồng thuê mặt bằng ổn định dài hạn nếu đơn vị chứng minh được đề án bài bản.',
+    tag: 'Tài chính & Ngân sách',
+    icon: '🏢',
+    options: [
+      {
+        label: 'Ký cam kết hoạt động 5 năm để nhận trợ giá',
+        effectText: 'Tiết kiệm chi phí, được cộng thêm 15.000.000 ₫ vào ngân sách!',
+        deltaBudget: 15_000_000,
+        flag: 'rent_subsidy'
+      },
+      {
+        label: 'Giữ nguyên hợp đồng hiện tại',
+        effectText: 'Ngân sách không đổi, không có ràng buộc phụ',
+        deltaBudget: 0
+      }
+    ]
+  },
+  {
+    id: 'm1_ev_parent_audit',
+    title: 'Kiến Nghị Minh Bạch Học Phí Từ Phụ Huynh',
+    sub: 'Quy chế Ba Công Khai',
+    desc: 'Ban đại diện phụ huynh gửi kiến nghị lên Sở GD&ĐT đề nghị các cơ sở mới phải niêm yết rõ ràng mức thu học phí và tiêu chuẩn giáo viên trước khi tuyển sinh.',
+    tag: 'Minh bạch giáo dục',
+    icon: '📋',
+    options: [
+      {
+        label: 'Công khai đầy đủ biểu phí và cam kết chất lượng (D15)',
+        effectText: 'Tạo dựng niềm tin vững chắc từ cộng đồng và cơ quan quản lý (+5 điểm)',
+        deltaScore: 5,
+        flag: 'transparent'
+      },
+      {
+        label: 'Chỉ báo giá học phí khi phụ huynh tới đăng ký trực tiếp',
+        effectText: 'Vi phạm Thông tư 09/2024/TT-BGDĐT về ba công khai, bị trừ điểm (-5 điểm)',
+        deltaScore: -5
+      }
+    ]
+  }
+]
+
+export const M2_EVENTS: GameEvent[] = [
+  {
+    id: 'm2_ev_wifi',
+    title: 'Đường Truyền Internet Bất Ngờ Chập Chờn',
+    sub: 'Sự cố hạ tầng số tại lớp học',
+    desc: 'Mạng Internet của trường bị nghẽn đột xuất do sự cố tuyến cáp. Học sinh không thể tải các ứng dụng AI hay tra cứu thông tin trực tuyến nặng.',
+    tag: 'Sự cố thiết bị',
+    icon: '📡',
+    options: [
+      {
+        label: 'Chuyển sang làm việc nhóm với sơ đồ tư duy trên giấy A0',
+        effectText: 'Rèn luyện khả năng thích ứng linh hoạt: Tăng Kết nối xã hội (+8) và Tư duy (+4)',
+        deltaStats: [4, 8, -6],
+        flag: 'offline_pivot'
+      },
+      {
+        label: 'Cố gắng chờ khởi động lại router để tiếp tục dùng máy',
+        effectText: 'Thời gian chết trong lớp kéo dài, học sinh phân tâm (-4 Tư duy)',
+        deltaStats: [-4, -4, 0]
+      }
+    ]
+  },
+  {
+    id: 'm2_ev_absent',
+    title: '3 Học Sinh Nòng Cốt Nghỉ Ốm Đột Xuất',
+    sub: 'Biến động nhân sự nhóm',
+    desc: 'Thời tiết thay đổi khiến 3 bạn thường giữ vai trò nhóm trưởng đều vắng mặt. Các bạn còn lại trong lớp đang lúng túng khi phân công nhiệm vụ.',
+    tag: 'Tâm lý lớp học',
+    icon: '🤒',
+    options: [
+      {
+        label: 'Cơ cấu lại thành các cặp đôi hỗ trợ nhau, khích lệ bạn mới',
+        effectText: 'Tạo cơ hội cho học sinh rụt rè bộc lộ tiềm năng: Tăng Kết nối xã hội (+10)',
+        deltaStats: [2, 10, 0],
+        flag: 'pair_empower'
+      },
+      {
+        label: 'Giáo viên trực tiếp đứng lớp giảng giải từng nhóm',
+        effectText: 'Đảm bảo kiến thức nhưng giảm sự chủ động gắn kết của học sinh',
+        deltaStats: [4, -4, 0]
+      }
+    ]
+  },
+  {
+    id: 'm2_ev_curious',
+    title: 'Học Sinh Đặt Câu Hỏi Thách Thức Bản Chất AI',
+    sub: 'Tia sáng phản biện tự nhiên',
+    desc: 'Một học sinh giơ tay hỏi: "Thưa thầy/cô, AI có thể viết bài này trong 2 giây, tại sao chúng em vẫn phải tốn 20 phút tự viết tay ạ?"',
+    tag: 'Sư phạm & Bản sắc',
+    icon: '💡',
+    options: [
+      {
+        label: 'Dành 3 phút mở diễn đàn: "Bản chất tư duy người vs Thuật toán máy"',
+        effectText: 'Thắp sáng tư duy phản biện và đạo đức công nghệ: Tăng Tư duy (+8), Năng lực số (+6)',
+        deltaStats: [8, 4, 6],
+        flag: 'philosophy'
+      },
+      {
+        label: 'Nhắc nhở học sinh tập trung vào bài tập để kịp thời gian',
+        effectText: 'Đảm bảo tiến độ bài giảng nhưng bỏ lỡ khoảnh khắc dạy học đắt giá',
+        deltaStats: [-2, 0, 0]
+      }
+    ]
+  }
+]
+
+// ==========================================
+// ⚖️ DILEMMA CARDS (THẺ TÌNH HUỐNG ĐẠO ĐỨC)
+// ==========================================
+export type DilemmaCard = {
+  id: string
+  title: string
+  scenario: string
+  tag: string
+  icon: string
+  options: {
+    id: string
+    text: string
+    consequence: string
+    isEthical: boolean
+    scoreDelta: number
+    statsDelta?: number[]
+    budgetDelta?: number
+  }[]
+}
+
+export const M1_DILEMMAS: DilemmaCard[] = [
+  {
+    id: 'd1_pccc_shortcut',
+    title: 'Lách Hồ Sơ Hay Làm Đúng Chuẩn?',
+    scenario: 'Một đơn vị môi giới đề xuất gói thẩm duyệt PCCC "tốc hành" với chi phí chỉ 5.000.000 ₫ (thay vì 15.000.000 ₫ theo quy chuẩn Cảnh sát PCCC tỉnh), nhưng thực tế chưa đạt tiêu chuẩn thoát hiểm khi có sự cố.',
+    tag: 'Đạo đức kinh doanh & An toàn sinh mạng',
+    icon: '⚖️',
+    options: [
+      {
+        id: 'opt_reject',
+        text: 'Kiên quyết từ chối, làm đúng quy chuẩn an toàn Cảnh sát PCCC cấp Tỉnh',
+        consequence: 'Bảo vệ an toàn tuyệt đối cho người học, trọn vẹn đạo đức nhà giáo (+10 điểm đạo đức)',
+        isEthical: true,
+        scoreDelta: 10,
+        budgetDelta: 0
+      },
+      {
+        id: 'opt_accept',
+        text: 'Chấp nhận làm nhanh để tiết kiệm 10 triệu đồng chi phí ban đầu',
+        consequence: 'Nguy cơ bị phát hiện và đình chỉ ngay khi có thanh tra kiểm tra thực địa (-25 điểm, vi phạm pháp luật)',
+        isEthical: false,
+        scoreDelta: -25,
+        budgetDelta: 10_000_000
+      }
+    ]
+  },
+  {
+    id: 'd1_teacher_qualification',
+    title: 'Giáo Viên Giỏi Nhưng Chưa Đạt Chuẩn Bằng Cấp',
+    scenario: 'Bạn phỏng vấn được một ứng viên giảng dạy rất lôi cuốn, nhưng ứng viên này mới chỉ có bằng Cao đẳng, chưa hoàn thành Cử nhân sư phạm theo quy định tại Điều 72 Luật Giáo dục 2019.',
+    tag: 'Chuẩn nghề nghiệp giáo viên',
+    icon: '🎓',
+    options: [
+      {
+        id: 'opt_standard',
+        text: 'Yêu cầu ứng viên hoàn thiện văn bằng Cử nhân sư phạm trước khi chính thức đứng lớp',
+        consequence: 'Tuân thủ đúng pháp luật, bảo đảm chuẩn chất lượng đội ngũ giảng dạy (+10 điểm)',
+        isEthical: true,
+        scoreDelta: 10
+      },
+      {
+        id: 'opt_bypass',
+        text: 'Ký hợp đồng dịch vụ ngoài để cho đứng lớp giảng dạy ngay',
+        consequence: 'Bị xử phạt hành chính khi rà soát hồ sơ nhân sự, gây rủi ro pháp lý cho cơ sở (-15 điểm)',
+        isEthical: false,
+        scoreDelta: -15
+      }
+    ]
+  }
+]
+
+export const M2_DILEMMAS: DilemmaCard[] = [
+  {
+    id: 'd2_ai_plagiarism',
+    title: 'Bài Viết Hoàn Hảo Đột Biến Của Học Sinh',
+    scenario: 'Một học sinh học lực yếu nộp bài luận xuất sắc vượt bậc. Kiểm tra thấy nội dung do AI tạo sinh 100%, học sinh không thể giải thích được ý nghĩa các luận điểm trong bài.',
+    tag: 'Đạo đức học thuật & Công nghệ',
+    icon: '🤖',
+    options: [
+      {
+        id: 'opt_mentor',
+        text: 'Trò chuyện riêng sau giờ: Khen em biết ứng dụng công cụ, rồi hướng dẫn em tự diễn đạt lại theo suy nghĩ của mình',
+        consequence: 'Giúp học sinh hiểu được giá trị tự lực tư duy và sử dụng AI có trách nhiệm (+10 Tư duy, +10 Đạo đức)',
+        isEthical: true,
+        scoreDelta: 10,
+        statsDelta: [10, 4, 2]
+      },
+      {
+        id: 'opt_punish',
+        text: 'Chấm điểm 0 và phê bình gay gắt trước lớp để làm gương cho cả lớp',
+        consequence: 'Gây tâm lý tự ti và phản ứng tiêu cực cho học sinh (-15 Kết nối xã hội)',
+        isEthical: false,
+        scoreDelta: -10,
+        statsDelta: [-4, -15, 0]
+      },
+      {
+        id: 'opt_ignore',
+        text: 'Cho điểm tối đa vì bài viết rất hoàn hảo, không truy cứu thêm',
+        consequence: 'Tạo tiền lệ ỷ lại công nghệ và bất công với các học sinh tự lực làm bài (-15 Tư duy cốt lõi)',
+        isEthical: false,
+        scoreDelta: -15,
+        statsDelta: [-15, -4, 4]
+      }
+    ]
+  },
+  {
+    id: 'd2_digital_divide',
+    title: 'Khoảng Cách Thiết Bị Trong Lớp Học Số',
+    scenario: 'Khi lớp chuyển sang hoạt động tra cứu trên thiết bị số, có 4 em học sinh gia đình khó khăn không có điện thoại thông minh hay máy tính bảng, các em ngồi co ro ngượng ngùng.',
+    tag: 'Công bằng trong giáo dục',
+    icon: '🤝',
+    options: [
+      {
+        id: 'opt_pair_share',
+        text: 'Cơ cấu nhóm ghép cặp đôi dùng chung thiết bị, phân công vai trò phản biện cho các em',
+        consequence: 'Tạo môi trường hòa nhập, tôn trọng và ấm áp giữa các học sinh (+12 Kết nối xã hội, +10 Đạo đức)',
+        isEthical: true,
+        scoreDelta: 10,
+        statsDelta: [4, 12, 4]
+      },
+      {
+        id: 'opt_isolate',
+        text: 'Xếp 4 em ngồi riêng một góc tự đọc sách giáo khoa giấy',
+        consequence: 'Tạo cảm giác phân biệt đối xử và mặc cảm cách biệt hoàn cảnh (-20 Kết nối xã hội)',
+        isEthical: false,
+        scoreDelta: -20,
+        statsDelta: [-4, -20, -6]
+      }
+    ]
+  }
+]
+
+// ==========================================
+// 📖 BRANCHING SCENARIOS (TÌNH HUỐNG PHÂN NHÁNH SAU PHA 2)
+// ==========================================
+export type BranchScenario = {
+  id: string
+  triggerPhase: number
+  title: string
+  situation: string
+  choices: {
+    id: string
+    label: string
+    desc: string
+    statMod: [number, number, number]
+    tip: string
+  }[]
+}
+
+export const BRANCH_SCENARIOS: BranchScenario[] = [
+  {
+    id: 'branch_p2',
+    triggerPhase: 1, // After phase 2 (index 1)
+    title: 'Ngã Rẽ Sư Phạm: Học Sinh Phát Hiện AI Đưa Tin Sai',
+    situation: 'Khi tra cứu ở Pha 2, một nhóm học sinh reo lên: "Thưa cô, AI đưa ra số liệu hoàn toàn mâu thuẫn với sách giáo khoa!". Cả lớp bắt đầu phân vân và xôn xao bàn tán.',
+    choices: [
+      {
+        id: 'verify_source',
+        label: 'Dừng 3 phút, hướng dẫn cả lớp kỹ năng kiểm chứng đa nguồn',
+        desc: 'Chỉ cho học sinh cách nhận biết hiện tượng ảo giác (hallucination) của AI và tra cứu tài liệu kiểm chứng.',
+        statMod: [6, 2, 8],
+        tip: 'Quyết định chuẩn mực! Lỗi của AI trở thành bài học năng lực số và tư duy phản biện quý giá nhất.'
+      },
+      {
+        id: 'trust_textbook',
+        label: 'Yêu cầu bỏ qua AI, chỉ lấy sách giáo khoa làm căn cứ duy nhất',
+        desc: 'Bảo toàn tuyệt đối tính khuôn mẫu của bài học truyền thống, không bàn thêm.',
+        statMod: [4, -2, -6],
+        tip: 'Giữ được tiến độ giờ dạy nhưng làm giảm cơ hội tiếp cận công nghệ thực tế của học sinh.'
+      },
+      {
+        id: 'debate_ai',
+        label: 'Tổ chức tranh luận nhanh: Nhóm bảo vệ SGK vs Nhóm phân tích lập luận AI',
+        desc: 'Học sinh hào hứng đào sâu vấn đề, cùng nhau tìm ra nguyên nhân câu hỏi gợi mở chưa chuẩn.',
+        statMod: [8, 10, 4],
+        tip: 'Tương tác lớp học bùng nổ! Kỹ năng tranh biện và phản biện đa chiều được rèn luyện xuất sắc.'
+      }
+    ]
+  }
+]
+
+// ==========================================
+// 👁️ STUDENT PERSPECTIVE (GÓC NHÌN HỌC SINH)
+// ==========================================
+export function getStudentPerspective(ctx: Ctx, plan: PhaseChoice[], stats: number[]) {
+  const [tuDuy, ketNoi, nangLucSo] = stats
+  const names = ['Minh Khang', 'Hà Linh', 'Bảo Nam', 'Thu Trang', 'Tuấn Kiệt', 'Thanh Mai']
+  const studentName = names[(ctx.name.length + tuDuy) % names.length]
+  const aiCount = plan.filter((p) => (p.ai ?? 0) > 0).length
+
+  let diary = ''
+  if (tuDuy >= 70 && ketNoi >= 65 && nangLucSo >= 60) {
+    diary = `“Hôm nay là một trong những tiết học hứng khởi nhất của em ở lớp ${ctx.name}! Thầy/cô không bắt chúng em chỉ ngồi chép như cái máy, mà cho chúng em tự tìm tòi, tranh luận sôi nổi với các bạn. Khi dùng công nghệ, chúng em không bị ỷ lại mà được dạy cách 'chất vấn' lại thông tin. Em thấy mình vừa hiểu bài sâu hơn, vừa gắn bó hơn với bạn bè trong lớp.”`
+  } else if (tuDuy >= 65 && ketNoi < 45) {
+    diary = `“Hôm nay bài học có nhiều câu hỏi rất hóc búa, em suy nghĩ toát cả mồ hôi. Em hiểu bài chắc hơn, nhưng cả buổi em chỉ làm việc một mình, lớp khá trầm lắng. Em thấy hơi đơn độc, ước gì thầy/cô cho chúng em chia nhóm để thảo luận nhiều hơn với các bạn xung quanh.”`
+  } else if (aiCount >= 3 && tuDuy < 45) {
+    diary = `“Hôm nay thầy/cô cho dùng AI nhiều ơi là nhiều, cái gì cũng có máy gợi ý sẵn nên bài làm hoàn thành siêu nhanh. Nhưng khi gấp vở lại, em thấy đầu óc trống trơn vì hầu như toàn là câu chữ của AI viết hộ chứ không phải của em. Bạn kế bên còn bảo: 'Thế này cần gì học cho mệt, sau này cứ hỏi AI là xong!'... Em thấy hơi hoang mang.”`
+  } else if (nangLucSo < 40 && ctx.internet === 'Không') {
+    diary = `“Lớp mình ở ${ctx.name} tuy không có máy tính hay Internet xịn như các bạn trường khác, nhưng hôm nay thầy/cô mang đến những câu chuyện rất gần gũi. Chúng em được ngồi lại cùng nhau, tự vẽ sơ đồ và thảo luận say sưa. Em cảm thấy lớp học thật ấm áp và ai cũng có tiếng nói.”`
+  } else {
+    diary = `“Tiết học hôm nay của lớp ${ctx.name} diễn ra khá nhịp nhàng. Em thích cách thầy/cô tổ chức hoạt động, giúp em nắm được bài và có cơ hội trao đổi với các bạn. Em hy vọng các tiết sau sẽ tiếp tục có thêm những bài học sinh động như thế này!”`
+  }
+
+  return { studentName, diary }
+}
+
+// ==========================================
+// 📊 LOCAL LEADERBOARD SYSTEM
+// ==========================================
+export type LeaderboardEntry = {
+  id: string
+  name: string
+  mode: 1 | 2
+  score: number
+  date: string
+  detail: string
+  badges: string[]
+}
+
+const LB_KEY_M1 = 'norma_class_lb_m1_v1'
+const LB_KEY_M2 = 'norma_class_lb_m2_v1'
+
+export function getLeaderboard(mode: 1 | 2): LeaderboardEntry[] {
+  try {
+    const raw = localStorage.getItem(mode === 1 ? LB_KEY_M1 : LB_KEY_M2)
+    if (!raw) return []
+    return JSON.parse(raw)
+  } catch {
+    return []
+  }
+}
+
+export function saveLeaderboard(mode: 1 | 2, entry: Omit<LeaderboardEntry, 'id' | 'date'>) {
+  try {
+    const list = getLeaderboard(mode)
+    const newEntry: LeaderboardEntry = {
+      ...entry,
+      id: 'nc_' + Date.now(),
+      date: new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    }
+    const updated = [...list, newEntry]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
+    localStorage.setItem(mode === 1 ? LB_KEY_M1 : LB_KEY_M2, JSON.stringify(updated))
+    return updated
+  } catch {
+    return []
+  }
+}
+
+// ==========================================
+// 🔄 COMPARE MODE HELPERS
+// ==========================================
+export function saveLastRun(mode: 1 | 2, data: any) {
+  try {
+    sessionStorage.setItem(`norma_class_last_run_m${mode}`, JSON.stringify(data))
+  } catch {}
+}
+
+export function getLastRun(mode: 1 | 2): any | null {
+  try {
+    const raw = sessionStorage.getItem(`norma_class_last_run_m${mode}`)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
