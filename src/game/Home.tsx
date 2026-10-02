@@ -1,10 +1,41 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BADGES, getLeaderboard, type LeaderboardEntry } from './data'
-import { Btn, Label } from './ui'
+import { Btn, Label, Modal } from './ui'
 
 export default function Home({ name, setName, onPick, earned }: { name: string; setName: (s: string) => void; onPick: (m: 1 | 2) => void; earned: number }) {
   const [lbMode, setLbMode] = useState<1 | 2>(1)
   const leaderboard: LeaderboardEntry[] = getLeaderboard(lbMode)
+
+  // 📝 Modal nhập tên người chơi mới vào
+  const [showNameModal, setShowNameModal] = useState(() => !name || !name.trim())
+  const [tempName, setTempName] = useState(name)
+  const [pendingMode, setPendingMode] = useState<1 | 2 | null>(null)
+
+  useEffect(() => {
+    setTempName(name)
+  }, [name])
+
+  const handleConfirmName = (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    const trimmed = tempName.trim()
+    if (!trimmed) return
+    setName(trimmed)
+    setShowNameModal(false)
+    if (pendingMode) {
+      const m = pendingMode
+      setPendingMode(null)
+      onPick(m)
+    }
+  }
+
+  const handleStartMode = (m: 1 | 2) => {
+    if (!name || !name.trim()) {
+      setPendingMode(m)
+      setShowNameModal(true)
+    } else {
+      onPick(m)
+    }
+  }
 
   const modes = [
     { n: 1 as const, kick: 'Chế độ 01 · 6 bước', title: 'Khởi Nghiệp Giáo Dục', role: 'Nhà sáng lập trung tâm / trường học', goal: 'Lập bộ hồ sơ pháp lý phù hợp với mô hình hoạt động trong ngân sách, vượt qua Thanh Tra Mô Phỏng.', meta: ['4 mô hình', '33 hồ sơ & bẫy', 'Kéo – thả', 'Sự kiện đột xuất'] },
@@ -13,6 +44,46 @@ export default function Home({ name, setName, onPick, earned }: { name: string; 
 
   return (
     <div className="min-h-screen grid lg:grid-cols-[1fr_1.1fr] bg-white">
+      {/* 🎓 Welcome / Name Input Modal */}
+      {showNameModal && (
+        <Modal
+          isOpen={true}
+          onClose={name ? () => setShowNameModal(false) : undefined}
+          title="Chào mừng đến với NORMA CLASS"
+          sub="Khởi đầu trải nghiệm"
+          icon="🎓"
+        >
+          <form onSubmit={handleConfirmName} className="space-y-5">
+            <p className="text-sm text-ink/80 leading-relaxed">
+              Vui lòng nhập họ và tên của bạn để bắt đầu trò chơi. Tên này sẽ xuất hiện trên <b>Chứng nhận tốt nghiệp</b> và vinh danh trên <b>Bảng Xếp Hạng Kỷ Lục</b>.
+            </p>
+            <div>
+              <label htmlFor="modal-name-input">
+                <Label className="text-navy font-bold mb-2">Họ & Tên của bạn</Label>
+              </label>
+              <input
+                id="modal-name-input"
+                autoFocus
+                value={tempName}
+                onChange={(e) => setTempName(e.target.value)}
+                placeholder="VD: Nguyễn Thu Hà"
+                className="w-full bg-purple-soft/10 border-2 border-navy focus:border-purple outline-none px-4 py-3 font-display text-xl sm:text-2xl italic text-ink placeholder:text-navy/30 transition shadow-inner"
+              />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Btn
+                kind="navy"
+                className="w-full justify-center text-sm py-4"
+                disabled={!tempName.trim()}
+                onClick={handleConfirmName}
+              >
+                Vào trò chơi →
+              </Btn>
+            </div>
+          </form>
+        </Modal>
+      )}
+
       <section className="bg-white text-ink px-5 py-8 sm:p-10 lg:p-16 flex flex-col justify-between gap-10 lg:gap-16 relative overflow-hidden border-b-2 lg:border-b-0 lg:border-r-2 border-navy shadow-[4px_0_16px_rgba(26,51,153,0.03)]">
         <div className="flex justify-between items-center z-10">
           <Label className="text-ink/60 font-semibold">Trò chơi mô phỏng giáo dục · v2.0</Label>
@@ -27,7 +98,15 @@ export default function Home({ name, setName, onPick, earned }: { name: string; 
           </p>
         </div>
         <div className="max-w-md z-10">
-          <label htmlFor="pname"><Label className="text-ink/60 mb-2 font-semibold">Tên người chơi (in trên chứng nhận & bảng xếp hạng)</Label></label>
+          <div className="flex items-center justify-between mb-2">
+            <label htmlFor="pname"><Label className="text-ink/60 font-semibold">Tên người chơi</Label></label>
+            <button
+              onClick={() => setShowNameModal(true)}
+              className="font-mono text-[10px] text-purple hover:text-navy underline uppercase tracking-wider font-bold"
+            >
+              ✎ Đổi tên
+            </button>
+          </div>
           <input
             id="pname"
             value={name}
@@ -69,7 +148,7 @@ export default function Home({ name, setName, onPick, earned }: { name: string; 
                           </span>
                         ))}
                       </div>
-                      <Btn kind="navy" className="w-full sm:w-auto justify-center" onClick={() => onPick(m.n)}>
+                      <Btn kind="navy" className="w-full sm:w-auto justify-center" onClick={() => handleStartMode(m.n)}>
                         Bắt đầu →
                       </Btn>
                     </div>

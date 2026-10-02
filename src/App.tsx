@@ -8,7 +8,21 @@ type Screen = 'home' | 'm1' | 'm2' | 'cert1' | 'cert2'
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('home')
-  const [name, setName] = useState('')
+  const [name, setNameState] = useState(() => {
+    try {
+      return localStorage.getItem('norma_class_player_name') || ''
+    } catch {
+      return ''
+    }
+  })
+
+  const setName = (val: string) => {
+    setNameState(val)
+    try {
+      localStorage.setItem('norma_class_player_name', val)
+    } catch {}
+  }
+
   const [c1, setC1] = useState<Cert1>()
   const [c2, setC2] = useState<Cert2>()
   const home = () => { setScreen('home'); window.scrollTo(0, 0) }
