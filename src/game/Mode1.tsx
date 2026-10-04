@@ -132,8 +132,8 @@ export default function Mode1({ onExit, onDone, playerName = 'Người chơi' }:
   const handleDilemmaSelect = (optIndex: number) => {
     if (!activeDilemma) return
     const opt = activeDilemma.options[optIndex]
-    if (opt.budgetDelta) setDilemmaBonusBudget((b) => b + opt.budgetDelta)
-    if (opt.scoreDelta) setDilemmaBonusScore((s) => s + opt.scoreDelta)
+    if (opt.budgetDelta !== undefined) setDilemmaBonusBudget((b) => b + (opt.budgetDelta || 0))
+    if (opt.scoreDelta !== undefined) setDilemmaBonusScore((s) => s + (opt.scoreDelta || 0))
     setDilemmaChoice({ title: activeDilemma.title, choiceText: opt.text, isEthical: opt.isEthical })
     setActiveDilemma(null)
     performSubmit()

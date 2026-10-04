@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { BADGES, getLeaderboard, type LeaderboardEntry } from './data'
 import { Btn, Label, Modal } from './ui'
+import { RulesAndGuideSection, GameRulesModal, PreGameBriefingModal } from './RulesAndGuide'
 
 export default function Home({ name, setName, onPick, earned }: { name: string; setName: (s: string) => void; onPick: (m: 1 | 2) => void; earned: number }) {
   const [lbMode, setLbMode] = useState<1 | 2>(1)
@@ -10,6 +11,12 @@ export default function Home({ name, setName, onPick, earned }: { name: string; 
   const [showNameModal, setShowNameModal] = useState(() => !name || !name.trim())
   const [tempName, setTempName] = useState(name)
   const [pendingMode, setPendingMode] = useState<1 | 2 | null>(null)
+
+  // 📜 Modal xem đầy đủ cách chơi & nội quy
+  const [showRulesModal, setShowRulesModal] = useState(false)
+
+  // 🚀 Pre-game briefing modal trước khi vào game với nút START
+  const [briefingMode, setBriefingMode] = useState<1 | 2 | null>(null)
 
   useEffect(() => {
     setTempName(name)
@@ -24,7 +31,7 @@ export default function Home({ name, setName, onPick, earned }: { name: string; 
     if (pendingMode) {
       const m = pendingMode
       setPendingMode(null)
-      onPick(m)
+      setBriefingMode(m)
     }
   }
 
@@ -33,8 +40,13 @@ export default function Home({ name, setName, onPick, earned }: { name: string; 
       setPendingMode(m)
       setShowNameModal(true)
     } else {
-      onPick(m)
+      setBriefingMode(m)
     }
+  }
+
+  const handleDirectLaunch = (m: 1 | 2) => {
+    setBriefingMode(null)
+    onPick(m)
   }
 
   const modes = [
@@ -44,7 +56,7 @@ export default function Home({ name, setName, onPick, earned }: { name: string; 
 
   return (
     <div className="min-h-screen grid lg:grid-cols-[1fr_1.1fr] bg-white">
-      {/* 🎓 Welcome / Name Input Modal */}
+        {/* 🎓 Welcome / Name Input Modal */}
       {showNameModal && (
         <Modal
           isOpen={true}
@@ -70,18 +82,47 @@ export default function Home({ name, setName, onPick, earned }: { name: string; 
                 className="w-full bg-purple-soft/10 border-2 border-navy focus:border-purple outline-none px-4 py-3 font-display text-xl sm:text-2xl italic text-ink placeholder:text-navy/30 transition shadow-inner"
               />
             </div>
+
+            <div className="p-3 bg-purple-soft/20 border border-navy/20 text-xs text-ink/80 flex items-center gap-2.5">
+              <span className="text-base">📜</span>
+              <span>Bạn có thể đọc kỹ <b>Cách thức chơi</b> và <b>Nội quy</b> trước khi bắt đầu thử thách.</span>
+            </div>
+
             <div className="flex gap-3 pt-2">
               <Btn
                 kind="navy"
-                className="w-full justify-center text-sm py-4"
+                className="w-full justify-center text-sm py-4 font-black"
                 disabled={!tempName.trim()}
                 onClick={handleConfirmName}
               >
-                Vào trò chơi →
+                VÀO TRÒ CHƠI (START) →
               </Btn>
             </div>
           </form>
         </Modal>
+      )}
+
+      {/* 🚀 Pre-game Briefing Modal before entering simulation */}
+      {briefingMode && (
+        <PreGameBriefingModal
+          isOpen={!!briefingMode}
+          mode={briefingMode}
+          playerName={name}
+          onClose={() => setBriefingMode(null)}
+          onConfirmStart={() => handleDirectLaunch(briefingMode)}
+        />
+      )}
+
+      {/* 📖 Standalone Full Rules & Gameplay Modal */}
+      {showRulesModal && (
+        <GameRulesModal
+          isOpen={showRulesModal}
+          onClose={() => setShowRulesModal(false)}
+          onStart={(m) => {
+            setShowRulesModal(false)
+            handleStartMode(m)
+          }}
+        />
       )}
 
       <section className="bg-white text-ink px-5 py-8 sm:p-10 lg:p-16 flex flex-col justify-between gap-10 lg:gap-16 relative overflow-hidden border-b-2 lg:border-b-0 lg:border-r-2 border-navy shadow-[4px_0_16px_rgba(26,51,153,0.03)]">
@@ -97,24 +138,37 @@ export default function Home({ name, setName, onPick, earned }: { name: string; 
             Trải nghiệm hai mặt của nghề giáo: thành lập cơ sở giáo dục <em className="text-navy font-semibold not-italic">đúng pháp luật</em>, và tổ chức bài dạy <em className="text-purple font-semibold not-italic">đúng học sinh</em>.
           </p>
         </div>
-        <div className="max-w-md z-10">
-          <div className="flex items-center justify-between mb-2">
-            <label htmlFor="pname"><Label className="text-ink/60 font-semibold">Tên người chơi</Label></label>
+        <div className="max-w-md z-10 space-y-4">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label htmlFor="pname"><Label className="text-ink/60 font-semibold">Tên người chơi</Label></label>
+              <button
+                onClick={() => setShowNameModal(true)}
+                className="font-mono text-[10px] text-purple hover:text-navy underline uppercase tracking-wider font-bold"
+              >
+                ✎ Đổi tên
+              </button>
+            </div>
+            <input
+              id="pname"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="VD: Nguyễn Thu Hà"
+              className="w-full bg-transparent border-b-2 border-navy focus:border-purple outline-none py-3 font-display text-2xl italic text-ink placeholder:text-navy/30 transition"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
             <button
-              onClick={() => setShowNameModal(true)}
-              className="font-mono text-[10px] text-purple hover:text-navy underline uppercase tracking-wider font-bold"
+              onClick={() => setShowRulesModal(true)}
+              className="w-full py-2.5 px-3 bg-purple-soft/20 border-2 border-navy text-navy font-mono text-xs uppercase font-bold hover:bg-navy hover:text-white transition flex items-center justify-center gap-2"
             >
-              ✎ Đổi tên
+              <span>📖</span>
+              <span>Xem Cách Chơi & Nội Quy Trò Chơi</span>
             </button>
           </div>
-          <input
-            id="pname"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="VD: Nguyễn Thu Hà"
-            className="w-full bg-transparent border-b-2 border-navy focus:border-purple outline-none py-3 font-display text-2xl italic text-ink placeholder:text-navy/30 transition"
-          />
-          <p className="font-mono text-[10px] text-ink/50 mt-4 uppercase tracking-widest">Dành cho sinh viên sư phạm · giáo viên mới · nhà khởi nghiệp giáo dục</p>
+
+          <p className="font-mono text-[10px] text-ink/50 uppercase tracking-widest">Dành cho sinh viên sư phạm · giáo viên mới · nhà khởi nghiệp giáo dục</p>
         </div>
         {/* Purple decorative motifs */}
         <div aria-hidden className="absolute -right-20 -bottom-20 size-80 rounded-full border-2 border-purple-light/50 pointer-events-none" />
@@ -122,9 +176,22 @@ export default function Home({ name, setName, onPick, earned }: { name: string; 
         <div aria-hidden className="absolute top-1/4 -left-20 size-60 rounded-full bg-gradient-to-br from-purple-soft/20 to-purple-light/10 blur-2xl pointer-events-none" />
       </section>
 
-      <section className="px-4 py-8 sm:p-10 lg:p-14 flex flex-col justify-center gap-6 bg-white overflow-y-auto">
+      <section className="px-4 py-8 sm:p-10 lg:p-14 flex flex-col justify-start gap-6 bg-white overflow-y-auto">
+        {/* 📖 Mục nội dung về cách thức chơi và nội quy trước khi vào game */}
+        <RulesAndGuideSection
+          onStartGame={handleStartMode}
+          currentName={name}
+          onRequestName={(m) => {
+            setPendingMode(m)
+            setShowNameModal(true)
+          }}
+        />
+
         <div>
-          <Label className="text-navy font-bold mb-3">Chọn chế độ chơi</Label>
+          <div className="flex items-center justify-between mb-3">
+            <Label className="text-navy font-bold">Chọn chế độ chơi</Label>
+            <span className="font-mono text-[10px] text-ink/50 uppercase">2 Chế độ mô phỏng chuyên sâu</span>
+          </div>
           <div className="space-y-4">
             {modes.map((m) => (
               <article
@@ -148,8 +215,8 @@ export default function Home({ name, setName, onPick, earned }: { name: string; 
                           </span>
                         ))}
                       </div>
-                      <Btn kind="navy" className="w-full sm:w-auto justify-center" onClick={() => handleStartMode(m.n)}>
-                        Bắt đầu →
+                      <Btn kind="navy" className="w-full sm:w-auto justify-center font-bold" onClick={() => handleStartMode(m.n)}>
+                        Bắt đầu (START) →
                       </Btn>
                     </div>
                   </div>
